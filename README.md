@@ -1,6 +1,8 @@
 # 🧁 Calu Delícias Doces - Cardápio Digital & Encomendas
 
 🇧🇷 Cardápio web mobile-first (estilo Anota.ai) com montador de doces artesanais, opções de pagamento e checkout direto para o WhatsApp Business. Desenvolvido em React + Vite + Tailwind CSS.
+
+
 🇺🇸 Mobile-first digital menu & ordering web app with custom sweet builder and direct WhatsApp checkout. Built with React, Vite & Tailwind CSS.
 
 ---
