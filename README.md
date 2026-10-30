@@ -1,6 +1,7 @@
 # 🧁 Calu Delícias Doces - Cardápio Digital & Encomendas
 
-Cardápio digital mobile-first desenvolvido sob medida para a **Calu Delícias Doces**, funcionando no estilo *Anota AI / iFood próprio*, com checkout direto para o WhatsApp Business da loja (+55 21 99910-0225).
+🇧🇷 Cardápio web mobile-first (estilo Anota.ai) com montador de doces artesanais, opções de pagamento e checkout direto para o WhatsApp Business. Desenvolvido em React + Vite + Tailwind CSS.
+🇺🇸 Mobile-first digital menu & ordering web app with custom sweet builder and direct WhatsApp checkout. Built with React, Vite & Tailwind CSS.
 
 ---
 
@@ -36,26 +37,3 @@ Cardápio digital mobile-first desenvolvido sob medida para a **Calu Delícias D
    - Adicionar novos doces ou ofertas sazonais (Páscoa, Natal, Dia das Mães).
    - Atualizar dados de PIX e contato.
    - Salvo automaticamente no `localStorage` do navegador.
-
----
-
-## 🚀 Como Executar Localmente
-
-```bash
-# Entrar no diretório do projeto
-cd "C:\Users\mathe\.gemini\antigravity\scratch\calu-delicias-doces"
-
-# Iniciar servidor de desenvolvimento
-npm run dev
-```
-
-Acesse no navegador: `http://localhost:5173/`
-
----
-
-## 🌐 Como Fazer Deploy Gratuito (Vercel ou Netlify)
-
-1. Suba o código para o GitHub (pode ser repositório privado ou público).
-2. Acesse [vercel.com](https://vercel.com) ou [netlify.com](https://netlify.com).
-3. Importe o repositório — o build Vite é detectado automaticamente (`npm run build`).
-4. Seu cardápio estará no ar em um link seguro `https://caludelicias.vercel.app` para colocar na bio do Instagram e nos grupos de WhatsApp!
