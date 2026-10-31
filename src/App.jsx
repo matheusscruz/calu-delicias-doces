@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import StoreInfo from './components/StoreInfo';
 import CategoryNav from './components/CategoryNav';
@@ -8,20 +8,23 @@ import CartDrawer from './components/CartDrawer';
 import CheckoutModal from './components/CheckoutModal';
 import OrderSuccessModal from './components/OrderSuccessModal';
 import AdminModal from './components/AdminModal';
+import PinModal from './components/PinModal';
 
 import { initialStoreConfig, initialCategories, initialProducts } from './data/initialData';
+import { carregarConfiguracaoLoja, carregarProdutos } from './services/supabase';
 import { formatCurrency } from './utils/whatsapp';
-import { ShoppingBag, ArrowRight, Heart, Sparkles } from 'lucide-react';
+import { ArrowRight, Heart } from 'lucide-react';
 import { InstagramIcon } from './components/Icons';
 
 const STORAGE_KEYS = {
   STORE_CONFIG: 'calu_store_config_v1',
   PRODUCTS: 'calu_products_v1',
   CART: 'calu_cart_v1',
+  MASTER_UNLOCKED: 'calu_master_unlocked_v1',
 };
 
 export default function App() {
-  // Store Config state with localStorage persistence
+  // Store Config state with localStorage persistence and Supabase sync
   const [storeConfig, setStoreConfig] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.STORE_CONFIG);
@@ -31,7 +34,7 @@ export default function App() {
     }
   });
 
-  // Products state with localStorage persistence
+  // Products state with localStorage persistence and Supabase sync
   const [products, setProducts] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
@@ -57,9 +60,23 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
 
-  // Sync to localStorage
+  // Master Access (Unlocked via PIN or URL param)
+  const [isMasterUnlocked, setIsMasterUnlocked] = useState(() => {
+    try {
+      return sessionStorage.getItem(STORAGE_KEYS.MASTER_UNLOCKED) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Footer secret click detector
+  const footerClickCount = useRef(0);
+  const footerClickTimer = useRef(null);
+
+  // Sync state to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.STORE_CONFIG, JSON.stringify(storeConfig));
   }, [storeConfig]);
@@ -71,6 +88,36 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
   }, [cart]);
+
+  // Load latest data from Supabase Cloud on mount & check URL for ?admin=1
+  useEffect(() => {
+    // 1. Fetch remote store config
+    carregarConfiguracaoLoja().then((remoteConfig) => {
+      if (remoteConfig) {
+        setStoreConfig((prev) => ({ ...prev, ...remoteConfig }));
+      }
+    });
+
+    // 2. Fetch remote products
+    carregarProdutos().then((remoteProducts) => {
+      if (remoteProducts && remoteProducts.length > 0) {
+        setProducts(remoteProducts);
+      }
+    });
+
+    // 3. Check for admin link query param (ex: ?admin=1 ou ?admin=true ou #admin)
+    const params = new URLSearchParams(window.location.search);
+    const hasAdminParam = params.get('admin') === '1' || params.get('admin') === 'true' || window.location.hash === '#admin';
+    
+    if (hasAdminParam) {
+      if (sessionStorage.getItem(STORAGE_KEYS.MASTER_UNLOCKED) === 'true') {
+        setIsMasterUnlocked(true);
+        setIsAdminOpen(true);
+      } else {
+        setIsPinModalOpen(true);
+      }
+    }
+  }, []);
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
@@ -126,6 +173,37 @@ export default function App() {
     setCart([]); // Clear cart after order is successfully sent
   };
 
+  // Secret trigger handler (called when logo or footer is tapped 3 times)
+  const handleSecretTrigger = () => {
+    if (isMasterUnlocked) {
+      setIsAdminOpen(true);
+    } else {
+      setIsPinModalOpen(true);
+    }
+  };
+
+  // Triple tap on footer heart
+  const handleFooterHeartClick = () => {
+    footerClickCount.current += 1;
+    if (footerClickTimer.current) clearTimeout(footerClickTimer.current);
+
+    if (footerClickCount.current >= 3) {
+      footerClickCount.current = 0;
+      handleSecretTrigger();
+    } else {
+      footerClickTimer.current = setTimeout(() => {
+        footerClickCount.current = 0;
+      }, 1200);
+    }
+  };
+
+  // When PIN is entered correctly
+  const handlePinSuccess = () => {
+    sessionStorage.setItem(STORAGE_KEYS.MASTER_UNLOCKED, 'true');
+    setIsMasterUnlocked(true);
+    setIsAdminOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#FFF9FA] text-[#2D2424] flex flex-col font-sans">
       {/* Header */}
@@ -135,6 +213,8 @@ export default function App() {
         cartTotal={cartTotal}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        isMasterUnlocked={isMasterUnlocked}
+        onSecretTrigger={handleSecretTrigger}
       />
 
       {/* Main Content Area */}
@@ -186,9 +266,9 @@ export default function App() {
         </div>
       </main>
 
-      {/* Floating Bottom Cart Bar (Mobile-first Anota.ai style) */}
+      {/* Floating Bottom Cart Bar */}
       {cartCount > 0 && !isCartOpen && !isCheckoutOpen && !customizingProduct && (
-        <div className="fixed bottom-3 left-0 right-0 z-40 px-4 max-w-md mx-auto animate-in slide-in-from-bottom duration-300">
+        <div className="fixed bottom-3 left-0 right-0 z-40 px-4 max-w-md mx-auto animate-in slide-from-bottom duration-300">
           <button
             onClick={() => setIsCartOpen(true)}
             className="w-full bg-[#D86B88] hover:bg-[#C24869] text-white p-3.5 rounded-2xl shadow-xl shadow-[#D86B88]/30 flex items-center justify-between font-bold text-sm transition-all active:scale-98 cursor-pointer border border-[#FFD0DC]"
@@ -234,8 +314,13 @@ export default function App() {
             </a>
           </div>
 
-          <p className="text-[10px] text-[#A68890] pt-2 flex items-center justify-center gap-1">
-            Feito com <Heart className="w-3 h-3 text-[#D86B88] fill-[#D86B88]" /> para Calu Delícias Doces
+          {/* Footer Heart with 3-tap secret trigger */}
+          <p 
+            onClick={handleFooterHeartClick}
+            className="text-[10px] text-[#A68890] pt-2 flex items-center justify-center gap-1 cursor-pointer select-none"
+            title="Calu Delícias Doces"
+          >
+            Feito com <Heart className="w-3 h-3 text-[#D86B88] fill-[#D86B88] active:scale-125 transition-transform" /> para Calu Delícias Doces
           </p>
         </div>
       </footer>
@@ -277,6 +362,15 @@ export default function App() {
         onNewOrder={() => setCompletedOrder(null)}
       />
 
+      {/* PIN Access Modal for Master/Admin */}
+      <PinModal
+        isOpen={isPinModalOpen}
+        onClose={() => setIsPinModalOpen(false)}
+        expectedPin={storeConfig.adminPin || '2026'}
+        onSuccess={handlePinSuccess}
+      />
+
+      {/* Master Management Panel */}
       <AdminModal
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
